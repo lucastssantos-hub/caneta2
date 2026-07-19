@@ -1,0 +1,542 @@
+// GLP-1 Tracker — Prisma schema
+// App que monta e acompanha dieta + treino para quem usa GLP-1
+// (semaglutida, tirzepatida, liraglutida etc.)
+//
+// Provider: PostgreSQL (recomendado p/ séries temporais: peso, doses, logs).
+// Para trocar por MongoDB: mude o provider e troque os @id/@default(cuid())
+// por: @id @default(auto()) @map("_id") @db.ObjectId  (e ajuste as FKs).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  user
+  coach // opcional: profissional que acompanha o usuário
+  admin
+}
+
+enum Sex {
+  male
+  female
+  other
+}
+
+enum UnitSystem {
+  metric   // kg, cm
+  imperial // lb, in
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  active
+  very_active
+}
+
+enum Goal {
+  lose_fat
+  preserve_muscle // objetivo crítico em GLP-1: evitar perda de massa magra
+  recomposition
+  maintain
+  gain_muscle
+}
+
+// --- Medicação GLP-1 ---
+
+enum Glp1Drug {
+  semaglutide  // Ozempic / Wegovy
+  tirzepatide  // Mounjaro / Zepbound (GLP-1 + GIP)
+  liraglutide  // Saxenda / Victoza
+  dulaglutide  // Trulicity
+  other
+}
+
+enum DoseFrequency {
+  weekly       // semaglutida, tirzepatida, dulaglutida
+  daily        // liraglutida
+  other
+}
+
+enum InjectionSite {
+  abdomen
+  thigh
+  upper_arm
+}
+
+enum MedicationStatus {
+  active
+  paused
+  discontinued
+}
+
+// --- Efeitos colaterais ---
+
+enum SideEffectType {
+  nausea
+  vomiting
+  constipation
+  diarrhea
+  reflux
+  bloating
+  fatigue
+  headache
+  dizziness
+  appetite_loss
+  injection_site_reaction
+  hypoglycemia
+  other
+}
+
+enum Severity {
+  mild
+  moderate
+  severe
+}
+
+// --- Dieta ---
+
+enum MealType {
+  breakfast
+  morning_snack
+  lunch
+  afternoon_snack
+  dinner
+  supper
+}
+
+// --- Treino ---
+
+enum ExerciseCategory {
+  resistance // prioridade em GLP-1 p/ preservar massa magra
+  cardio
+  mobility
+  core
+}
+
+enum MuscleGroup {
+  chest
+  back
+  shoulders
+  arms
+  legs
+  glutes
+  core
+  full_body
+}
+
+enum PlanStatus {
+  active
+  archived
+  draft
+}
+
+enum NotificationType {
+  injection_reminder
+  weigh_in_reminder
+  meal_reminder
+  workout_reminder
+  protein_target
+  hydration
+  side_effect_followup
+  system
+}
+
+// ============================================================
+// USUÁRIO + PERFIL
+// ============================================================
+
+model User {
+  id             String  @id @default(cuid())
+  email          String  @unique
+  name           String
+  hashedPassword String
+  image          String?
+  role           Role    @default(user)
+  isActive       Boolean @default(true)
+
+  profile        Profile?
+  weightLogs     WeightLog[]
+  medications    Medication[]
+  injections     InjectionLog[]
+  sideEffects    SideEffectLog[]
+  mealPlans      MealPlan[]
+  foodLogs       FoodLog[]
+  workoutPlans   WorkoutPlan[]
+  workoutLogs    WorkoutLog[]
+  checkins       DailyCheckin[]
+  notifications  Notification[]
+  pushSubscriptions PushSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Assinatura de Web Push (uma por navegador/dispositivo).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint  String   @unique
+  p256dh    String   // chave pública do cliente (Web Push)
+  auth      String   // segredo de autenticação (Web Push)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Dados relativamente estáveis + metas diárias calculadas
+model Profile {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sex           Sex
+  birthDate     DateTime
+  heightCm      Float
+  unitSystem    UnitSystem    @default(metric)
+  activityLevel ActivityLevel @default(light)
+  goal          Goal          @default(preserve_muscle)
+
+  startWeightKg Float?        // peso ao iniciar o GLP-1 (baseline)
+  targetWeightKg Float?
+
+  // Metas diárias (podem ser geradas pelo app)
+  calorieTarget Int?
+  proteinTargetG Int?         // alto de propósito: proteger massa magra
+  waterTargetMl  Int?
+  fiberTargetG   Int?         // ajuda com a constipação comum no GLP-1
+
+  onboardedAt DateTime?       // preenchido quando o usuário completa o perfil
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// PESO / MEDIDAS (série temporal — eixo central do app)
+// ============================================================
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+  weightKg  Float
+  bodyFatPct Float?
+  waistCm   Float?
+  hipCm     Float?
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date]) // uma pesagem por dia
+  @@index([userId, date])
+}
+
+// ============================================================
+// MEDICAÇÃO GLP-1 + TITULAÇÃO + APLICAÇÕES
+// ============================================================
+
+// Um "curso" de medicação (ex.: iniciou semaglutida em jan/2026)
+model Medication {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  drug       Glp1Drug
+  brandName  String?          // "Ozempic", "Mounjaro"...
+  frequency  DoseFrequency    @default(weekly)
+  status     MedicationStatus @default(active)
+  startDate  DateTime         @db.Date
+  endDate    DateTime?        @db.Date
+
+  titration  TitrationStep[]
+  injections InjectionLog[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+// Etapas do escalonamento de dose (ex.: 0.25mg -> 0.5mg -> 1mg...)
+model TitrationStep {
+  id           String     @id @default(cuid())
+  medicationId String
+  medication   Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  doseMg       Float
+  startDate    DateTime   @db.Date
+  weeks        Int?       // por quantas semanas manter antes de subir
+  order        Int        // ordem da etapa
+
+  createdAt    DateTime @default(now())
+
+  @@index([medicationId])
+}
+
+// Aplicação real (o que o usuário registra)
+model InjectionLog {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicationId String
+  medication   Medication    @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  date         DateTime
+  doseMg       Float
+  site         InjectionSite?
+  skipped      Boolean       @default(false)
+  notes        String?
+
+  sideEffects  SideEffectLog[]
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ============================================================
+// EFEITOS COLATERAIS
+// ============================================================
+
+model SideEffectLog {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date       DateTime
+  type       SideEffectType
+  severity   Severity       @default(mild)
+  notes      String?
+
+  // opcional: vincular a uma aplicação específica
+  injectionId String?
+  injection   InjectionLog?  @relation(fields: [injectionId], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ============================================================
+// DIETA — catálogo, plano gerado e registro real
+// ============================================================
+
+// Catálogo de alimentos (macros por porção)
+model FoodItem {
+  id            String   @id @default(cuid())
+  name          String
+  servingSizeG  Float    @default(100)
+  calories      Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float    @default(0)
+  isGlp1Friendly Boolean @default(false) // alto em proteína/fibra, fácil de tolerar
+
+  plannedItems  PlannedMealItem[]
+  foodLogs      FoodLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// Plano alimentar (montado pelo app para um período)
+model MealPlan {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  status    PlanStatus   @default(active)
+  fromDate  DateTime     @db.Date
+  toDate    DateTime     @db.Date
+  autoGenerated Boolean  @default(true)
+
+  meals     PlannedMeal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model PlannedMeal {
+  id         String     @id @default(cuid())
+  mealPlanId String
+  mealPlan   MealPlan   @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+
+  dayOfWeek  Int        // 0-6 (plano semanal repetível) — ou use uma data
+  mealType   MealType
+  items      PlannedMealItem[]
+
+  @@index([mealPlanId, dayOfWeek])
+}
+
+model PlannedMealItem {
+  id            String      @id @default(cuid())
+  plannedMealId String
+  plannedMeal   PlannedMeal @relation(fields: [plannedMealId], references: [id], onDelete: Cascade)
+  foodItemId    String
+  foodItem      FoodItem    @relation(fields: [foodItemId], references: [id])
+
+  quantityG     Float       // porção em gramas
+}
+
+// Registro real do que o usuário comeu (adesão + soma de proteína/kcal do dia)
+model FoodLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItemId String
+  foodItem   FoodItem @relation(fields: [foodItemId], references: [id])
+
+  date       DateTime @db.Date
+  mealType   MealType
+  quantityG  Float
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ============================================================
+// TREINO — catálogo, plano gerado e registro real
+// ============================================================
+
+model Exercise {
+  id          String           @id @default(cuid())
+  name        String
+  category    ExerciseCategory @default(resistance)
+  muscleGroup MuscleGroup
+  instructions String?
+  isBodyweight Boolean         @default(false)
+
+  workoutExercises WorkoutExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model WorkoutPlan {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  status    PlanStatus   @default(active)
+  fromDate  DateTime     @db.Date
+  toDate    DateTime     @db.Date
+  autoGenerated Boolean  @default(true)
+
+  days      WorkoutDay[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model WorkoutDay {
+  id            String      @id @default(cuid())
+  workoutPlanId String
+  workoutPlan   WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+
+  dayOfWeek     Int         // 0-6
+  focus         String?     // "Membros inferiores", "Push"...
+  exercises     WorkoutExercise[]
+
+  @@index([workoutPlanId, dayOfWeek])
+}
+
+model WorkoutExercise {
+  id           String     @id @default(cuid())
+  workoutDayId String
+  workoutDay   WorkoutDay @relation(fields: [workoutDayId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id])
+
+  order        Int
+  sets         Int
+  reps         Int
+  weightKg     Float?
+  restSec      Int?
+}
+
+// Registro real de treino executado
+model WorkoutLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+  exerciseName String
+  setsDone  Int
+  repsDone  Int
+  weightKg  Float?
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ============================================================
+// CHECK-IN DIÁRIO + NOTIFICAÇÕES
+// ============================================================
+
+// Um snapshot diário rápido (humor/energia/fome/hidratação)
+model DailyCheckin {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+  energy    Int?     // 1-5
+  hunger    Int?     // 1-5 (GLP-1 reduz — bom p/ correlacionar com dose)
+  mood      Int?     // 1-5
+  waterMl   Int?
+  proteinG  Int?     // total do dia (pode ser derivado dos FoodLogs)
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  actionUrl String?          // deep-link para a tela relevante
+  scheduledFor DateTime?     // p/ lembretes futuros (injeção, pesagem...)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
