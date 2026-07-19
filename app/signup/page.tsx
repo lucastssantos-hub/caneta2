@@ -35,29 +35,28 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 420 }}>
-      <h1>Criar conta</h1>
-      <form className="card" onSubmit={onSubmit}>
-        <label>Nome</label>
-        <input value={form.name} onChange={(e) => set("name", e.target.value)} required />
-        <label>E-mail</label>
-        <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} required />
-        <label>Senha (mín. 8 caracteres)</label>
-        <input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} required />
-        <label>Sexo biológico (para o cálculo metabólico)</label>
-        <select value={form.sex} onChange={(e) => set("sex", e.target.value)}>
+    <main className="auth-page">
+      <div className="auth-card">
+        <Link className="auth-brand" href="/"><span className="brand-mark" aria-hidden="true">✦</span> GLP-1 Tracker</Link>
+        <div className="auth-intro"><h1>Comece sua jornada</h1><p>Crie seu espaço pessoal para acompanhar hábitos, medicação e evolução.</p></div>
+        <form className="card" onSubmit={onSubmit}>
+        <label htmlFor="signup-name">Nome</label>
+        <input id="signup-name" autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} required />
+        <label htmlFor="signup-email">E-mail</label>
+        <input id="signup-email" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} required />
+        <label htmlFor="signup-password">Senha (mín. 8 caracteres)</label>
+        <input id="signup-password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} required minLength={8} />
+        <label htmlFor="signup-sex">Sexo biológico (para o cálculo metabólico)</label>
+        <select id="signup-sex" value={form.sex} onChange={(e) => set("sex", e.target.value)}>
           <option value="female">Feminino</option>
           <option value="male">Masculino</option>
           <option value="other">Outro</option>
         </select>
         {error && <p className="error">{error}</p>}
-        <div style={{ marginTop: 16 }}>
-          <button className="btn" disabled={loading}>{loading ? "..." : "Cadastrar"}</button>
-        </div>
-      </form>
-      <p className="muted">
-        Já tem conta? <Link href="/signin">Entrar</Link>
-      </p>
-    </div>
+        <div className="form-actions"><button className="btn" disabled={loading}>{loading ? "Criando…" : "Criar minha conta"}</button></div>
+        </form>
+        <p className="muted">Já tem conta? <Link href="/signin">Entrar</Link></p>
+      </div>
+    </main>
   );
 }

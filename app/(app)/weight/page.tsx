@@ -23,7 +23,7 @@ export default async function WeightPage() {
 
   return (
     <>
-      <h1>Peso</h1>
+      <div className="page-heading"><div><h1>Peso</h1><p>Registre suas pesagens para acompanhar sua evolução com calma e consistência.</p></div></div>
       <WeightForm />
 
       <div className="card">

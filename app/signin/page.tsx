@@ -23,21 +23,20 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 420 }}>
-      <h1>Entrar</h1>
-      <form className="card" onSubmit={onSubmit}>
-        <label>E-mail</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <label>Senha</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+    <main className="auth-page">
+      <div className="auth-card">
+        <Link className="auth-brand" href="/"><span className="brand-mark" aria-hidden="true">✦</span> GLP-1 Tracker</Link>
+        <div className="auth-intro"><h1>Bem-vindo de volta</h1><p>Continue acompanhando sua jornada com mais clareza e consistência.</p></div>
+        <form className="card" onSubmit={onSubmit}>
+        <label htmlFor="signin-email">E-mail</label>
+        <input id="signin-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="signin-password">Senha</label>
+        <input id="signin-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p className="error">{error}</p>}
-        <div style={{ marginTop: 16 }}>
-          <button className="btn" disabled={loading}>{loading ? "..." : "Entrar"}</button>
-        </div>
-      </form>
-      <p className="muted">
-        Não tem conta? <Link href="/signup">Cadastre-se</Link>
-      </p>
-    </div>
+        <div className="form-actions"><button className="btn" disabled={loading}>{loading ? "Entrando…" : "Entrar"}</button></div>
+        </form>
+        <p className="muted">Não tem conta? <Link href="/signup">Criar minha conta</Link></p>
+      </div>
+    </main>
   );
 }

@@ -16,10 +16,7 @@ export default async function CheckinPage() {
 
   return (
     <>
-      <h1>Check-in diário</h1>
-      <p className="muted">
-        Acompanhe energia, fome e humor — a queda de fome costuma acompanhar a dose de GLP-1.
-      </p>
+      <div className="page-heading"><div><h1>Check-in diário</h1><p>Registre como você está para encontrar padrões ao longo do tempo.</p></div></div>
       <CheckinForm />
 
       <div className="card">

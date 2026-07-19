@@ -23,7 +23,7 @@ export default async function MedicationPage() {
 
   return (
     <>
-      <h1>Medicação</h1>
+      <div className="page-heading"><div><h1>Medicação</h1><p>Acompanhe suas aplicações e efeitos registrados em um só lugar.</p></div></div>
       <InjectionForm />
       <SideEffectForm />
 

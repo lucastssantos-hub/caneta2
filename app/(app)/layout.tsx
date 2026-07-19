@@ -14,10 +14,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <>
       <PwaRegister />
       <NavBar />
-      <div className="container">
+      <main className="container">
         <ReminderBanner />
         {children}
-      </div>
+      </main>
       <div className="container disclaimer">
         ⚠️ As estimativas de calorias, macros e dose são educacionais e não
         substituem acompanhamento médico/nutricional. A titulação de GLP-1 é

@@ -57,12 +57,14 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <h1>Olá, {user.name.split(" ")[0]} 👋</h1>
+      <div className="dashboard-header">
+        <div><h1>Olá, {user.name.split(" ")[0]} 👋</h1><p>Um retrato simples de como está sua jornada hoje.</p></div>
+        <Link className="btn secondary" href="/checkin">Fazer check-in</Link>
+      </div>
 
       {needsOnboarding && (
-        <div className="card" style={{ borderColor: "var(--accent)" }}>
-          <strong>Complete seu perfil</strong> para gerar planos com as suas metas
-          corretas.{" "}
+        <div className="notice">
+          <span><strong>Complete seu perfil</strong> para gerar planos com as suas metas corretas.</span>
           <Link href="/onboarding">Completar agora →</Link>
         </div>
       )}
@@ -86,13 +88,19 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <div className="quick-actions" aria-label="Ações rápidas">
+        <Link className="quick-action" href="/weight"><span className="quick-action-icon" aria-hidden="true">◒</span><span>Registrar peso</span></Link>
+        <Link className="quick-action" href="/medication"><span className="quick-action-icon" aria-hidden="true">＋</span><span>Registrar aplicação</span></Link>
+        <Link className="quick-action" href="/plan"><span className="quick-action-icon" aria-hidden="true">≋</span><span>Ver meu plano</span></Link>
+      </div>
+
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Evolução do peso</h3>
+        <div className="section-heading"><h3>Evolução do peso</h3><Link href="/weight">Ver detalhes →</Link></div>
         <WeightChart data={chartData} target={profile?.targetWeightKg} />
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Medicação</h3>
+        <div className="section-heading"><h3>Medicação</h3><Link href="/medication">Ver histórico →</Link></div>
         {activeMed ? (
           <p>
             <span className="badge">{activeMed.drug}</span> {activeMed.brandName ?? ""}
@@ -111,8 +119,8 @@ export default async function DashboardPage() {
       </div>
 
       <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>Plano da semana</h3>
+        <div className="section-heading" style={{ marginTop: 0 }}>
+          <h3>Plano da semana</h3>
           <GeneratePlanButton />
         </div>
         {mealPlan ? (

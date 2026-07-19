@@ -63,7 +63,7 @@ export default async function InsightsPage() {
 
   return (
     <>
-      <h1>Insights</h1>
+      <div className="page-heading"><div><h1>Insights</h1><p>Veja relações entre seus registros e sua rotina — sem transformar dados em diagnóstico.</p></div></div>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Adesão de proteína (últimos {DAYS} dias)</h3>
