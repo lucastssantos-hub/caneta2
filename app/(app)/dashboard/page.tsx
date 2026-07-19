@@ -91,7 +91,8 @@ export default async function DashboardPage() {
       <div className="quick-actions" aria-label="Ações rápidas">
         <Link className="quick-action" href="/weight"><span className="quick-action-icon" aria-hidden="true">◒</span><span>Registrar peso</span></Link>
         <Link className="quick-action" href="/medication"><span className="quick-action-icon" aria-hidden="true">＋</span><span>Registrar aplicação</span></Link>
-        <Link className="quick-action" href="/plan"><span className="quick-action-icon" aria-hidden="true">≋</span><span>Ver meu plano</span></Link>
+        <Link className="quick-action" href="/nutrition"><span className="quick-action-icon" aria-hidden="true">◌</span><span>Ver nutrição</span></Link>
+        <Link className="quick-action" href="/training"><span className="quick-action-icon" aria-hidden="true">△</span><span>Ver treino</span></Link>
       </div>
 
       <div className="card">
@@ -120,7 +121,7 @@ export default async function DashboardPage() {
 
       <div className="card">
         <div className="section-heading" style={{ marginTop: 0 }}>
-          <h3>Plano da semana</h3>
+          <h3>Planos da semana</h3>
           <GeneratePlanButton />
         </div>
         {mealPlan ? (

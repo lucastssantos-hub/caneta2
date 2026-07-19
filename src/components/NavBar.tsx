@@ -9,9 +9,12 @@ const navItems = [
   ["/weight", "◒", "Peso"],
   ["/medication", "＋", "Medicação"],
   ["/checkin", "♡", "Check-in"],
-  ["/plan", "≋", "Plano"],
+  ["/nutrition", "◌", "Nutrição"],
+  ["/training", "△", "Treino"],
   ["/insights", "⌁", "Insights"],
 ] as const;
+
+const mobileNavItems = [navItems[0], navItems[4], navItems[5], navItems[3], ["/onboarding", "◉", "Perfil"]] as const;
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -40,7 +43,7 @@ export default function NavBar() {
         </div>
       </nav>
       <nav className="bottom-nav" aria-label="Navegação mobile">
-        {navItems.slice(0, 5).map(([href, icon, label]) => (
+        {mobileNavItems.map(([href, icon, label]) => (
           <Link key={href} href={href} aria-current={isActive(href) ? "page" : undefined}>
             <span aria-hidden="true">{icon}</span><span>{label}</span>
           </Link>
